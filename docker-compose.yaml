@@ -1,30 +1,123 @@
+# File: docker-compose.yaml
+# Docker Compose config for Ollama, Elasticsearch, and the QA application.
+
 version: '3.8'
 
-services:
-  ollama:
-    image: ollama/ollama
-    ports:
-      - "11434:11434"
-    volumes:
-      - ollama:/root/.ollama
-    restart: always
-
-  elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.4.3
-    environment:
-      - discovery.type=single-node
-      - xpack.security.enabled=false
-    ports:
-      - "9200:9200"
-      - "9300:9300"
-    volumes:
-      - es_data:/usr/share/elasticsearch/data
-    deploy:
-      resources:
-        limits:
-          memory: 2G
-    restart: always
-
 volumes:
+  # Define named volumes for persistent data storage
   ollama:
   es_data:
+
+networks:
+  # Define a network for the services to communicate
+  default:
+    driver: bridge  # Use the default bridge network for inter-service communication
+
+services:
+  py11:
+    image: python:3.11-slim
+    tty: true         # <- same as `-t`
+    stdin_open: true  # <- same as `-i`
+    container_name: python-3.11-app
+    volumes:
+      - ..:/work
+
+    working_dir: /work
+    entrypoint: bash    
+    environment:
+      - PYTHONUNBUFFERED=1
+    ports:
+      - "8888:8888"  # optional if using Streamlit or similar
+    networks:
+      - default 
+
+
+  ollama:
+    # Use the Ollama image from Docker Hub
+    # This image contains the Ollama service for running language models
+    image: ollama/ollama
+    # Use a named volume for Ollama data
+    # This ensures data persistence across container restarts
+    volumes:
+      - ollama:/root/.ollama  # Persist models locally
+    # Expose Ollama ports for communication
+    # The Ollama service exposes port 11434 for its API
+    ports:
+      - "11434:11434"
+    networks:
+      - default  # Connect to the defined network
+    restart: always
+    healthcheck:
+      # test: curl -f http://localhost:9200 || exit 1
+      test: ["CMD", "curl", "-f", "http://localhost:11434"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # elasticsearch: 
+  #   # Use the official Elasticsearch image from Elastic's Docker registry
+  #   # This image provides a fully functional Elasticsearch instance
+  #   # Synronized with Pipfile version for compatibility
+  #   # https://hub.docker.com/_/elasticsearch/tags
+  #   image: docker.elastic.co/elasticsearch/elasticsearch:8.4.3
+  #   # image: docker.elastic.co/elasticsearch/elasticsearch:9.0.2  # Updated to match the latest version
+  #   # Use a named volume for Elasticsearch data
+  #   # This ensures data persistence across container restarts
+  #   volumes:
+  #     - es_data:/usr/share/elasticsearch/data
+  #   # Set environment variables for Elasticsearch configuration
+  #   # This configuration sets up Elasticsearch as a single-node instance without security features
+  #   environment:
+  #     - discovery.type=single-node
+  #     - xpack.security.enabled=false
+  #     - xpack.security.enrollment.enabled=false
+  #     # - ES_JAVA_OPTS=-Xms1g -Xmx1g
+  #   # Expose Elasticsearch ports for communication
+  #   # Port 9200 is for HTTP communication, and port 9300 is for internal
+  #   ports:
+  #     - "9200:9200"
+  #     - "9300:9300"
+  #   networks:
+  #     - default  # Connect to the defined network
+  #   # Set resource limits for the Elasticsearch container
+  #   # This ensures that Elasticsearch has enough memory to operate efficiently
+  #   # deploy:
+  #   #   resources:
+  #   #     limits:
+  #   #       memory: 2G
+  #   # 
+  #   mem_limit: 2g  # Use this instead of deploy.resources.limits for non-Swarm
+  #   # restart: always
+  #   # healthcheck:
+  #   #   test: ["CMD", "curl", "-f", "http://localhost:9200"]
+  #   #   interval: 10s
+  #   #   timeout: 5s
+  #   #   retries: 10
+  
+  # app:
+  #   # Use the local Dockerfile to build the app image
+  #   # This image contains the application that interacts with Ollama and Elasticsearch
+  #   build: .
+  #   # volumes:
+  #   #   - .:/app
+  #   env_file:
+  #     - .env  # Load environment variables from .env file
+  #   # Ensure the app can access Ollama and Elasticsearch services
+  #   # This allows the app to communicate with Ollama and Elasticsearch using their service names
+  #   environment:
+  #     - HUGGINGFACE_API_TOKEN=$(HUGGINGFACE_API_TOKEN)
+  #     - OPENAI_API_KEY=$(OPENAI_API_KEY)
+  #     - ELASTICSEARCH_URL=$(ELASTICSEARCH_URL:-http://localhost:9200)
+  #     - OLLAMA_API=$(OLLAMA_API:-http://localhost:11434)
+  #   # Expose the app's port for external access
+  #   # The app service exposes port 8501 for its web interface
+  #   ports:
+  #     - "8501:8501"
+  #   networks:
+  #     - default  # Connect to the defined network
+  #   restart: always
+  #   # Ensure the app starts after Ollama and Elasticsearch are ready
+  #   # This ensures that the app service waits for the other services to be fully up before starting
+  #   depends_on:      
+  #     - ollama
+  #     - elasticsearch

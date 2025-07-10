@@ -4,20 +4,26 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
+python-docx = "*"
+notebook = "==7.1.2"  # Ensure compatibility with JupyterLab 4.0
+tqdm = "*"
+requests = "*"
 scikit-learn = "*"
 pandas = "*"
-requests = "*"
-python-docx = "*"
-notebook = "==7.1.2"
-transformers = "*"
-accelerate = "*"
+elasticsearch = "8.4.3"  # Updated to match docker-compose version
 bitsandbytes = "*"
 bitsandbytes-cuda116 = "*"
+accelerate = "*"
+transformers = "*"
+huggingface_hub = "*"
 openai = "*"
-tqdm = "*"
-elasticsearch = "*"
+
+streamlit = "*"
+pywinpty = { version = "*", markers = "sys_platform == 'win32'" }  # streamlit dependency for Windows
 
 [dev-packages]
+pytest = "*"
+pytest-cov = "*"
 
 [requires]
-python_version = "3.9"
+python_version = "3.11"  # Ensure compatibility with the Docker image and other packages
